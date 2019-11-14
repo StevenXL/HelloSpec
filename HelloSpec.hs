@@ -41,23 +41,17 @@ specs :: SpecWith SqlBackend
 specs = describe "insertion" $ do
             it "can insert a person" $ \c -> do
                 personCount <- runDb c $ do
-                                  transactionSave
                                   let person = Person "John Doe" (Just 35)
                                   _ <- insert person
-                                  count <- getPersonCount
-                                  transactionUndo
-                                  pure count
+                                  getPersonCount
                 personCount `shouldBe` 1
             it "tests don't interact" $  \c -> do
                 personCount <- runDb c $ do
-                                  transactionSave
                                   let person = Person "John Doe" (Just 35)
                                   let person' = Person "Jane Doe" (Just 35)
                                   insert person
                                   insert person'
-                                  count <- getPersonCount
-                                  transactionUndo
-                                  pure count
+                                  getPersonCount
                 personCount `shouldBe` 2 -- will be 3 if first tests interacts
 
 getPersonCount :: MonadIO m => ReaderT SqlBackend m Int
@@ -65,9 +59,6 @@ getPersonCount = count ([] :: [Filter Person])
 
 withDatabaseConnection :: SpecWith SqlBackend -> Spec
 withDatabaseConnection = beforeAll dbSetup
-
-runDb :: (MonadUnliftIO m) => SqlBackend -> ReaderT SqlBackend m a -> m a
-runDb = flip runSqlConn
 
 -- | Use an in-memory SQLite database, run the migration, return the connection
 -- for use the the specs
@@ -77,6 +68,16 @@ dbSetup = do
     conn        <- wrapConnection rawConn noLogging
     _           <- runSqlConn (runMigration migrateAll) conn
     return conn
+
+-- | runDb ensures that the action is ran in a transaction which is rolled back.
+-- This ensures tests do not interact with one another.
+runDb :: (MonadUnliftIO m) => SqlBackend -> ReaderT SqlBackend m a -> m a
+runDb conn action = runSqlConn isolatedAction conn
+    where isolatedAction = do
+              transactionSave
+              results <- action
+              transactionUndo
+              return results
 
 -- | We don't care about logging
 noLogging :: LogFunc
