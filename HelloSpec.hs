@@ -14,7 +14,7 @@
 
 import           Control.Monad.IO.Class (MonadIO)
 import           Control.Monad.Reader (ReaderT)
-import           Database.Persist.Sqlite (SqlBackend, LogFunc, Filter, Entity, runSqlite, runMigration, wrapConnection, rawSql, insert, count, runSqlConn, transactionSave, transactionUndo)
+import           Database.Persist.Sqlite (SqlBackend, LogFunc, Filter, Entity, runSqlite, runMigration, wrapConnection, rawSql, insert, count, runSqlConn, transactionSave, transactionUndo, close')
 import           Database.Persist.TH
 import           Database.Sqlite (open)
 import           Test.Hspec
@@ -58,7 +58,7 @@ getPersonCount :: MonadIO m => ReaderT SqlBackend m Int
 getPersonCount = count ([] :: [Filter Person])
 
 withDatabaseConnection :: SpecWith SqlBackend -> Spec
-withDatabaseConnection = beforeAll dbSetup
+withDatabaseConnection = beforeAll dbSetup . afterAll dbTeardown
 
 -- | Use an in-memory SQLite database, run the migration, return the connection
 -- for use the the specs
@@ -68,6 +68,9 @@ dbSetup = do
     conn        <- wrapConnection rawConn noLogging
     _           <- runSqlConn (runMigration migrateAll) conn
     return conn
+
+dbTeardown :: SqlBackend -> IO ()
+dbTeardown = close'
 
 -- | runDb ensures that the action is ran in a transaction which is rolled back.
 -- This ensures tests do not interact with one another.
