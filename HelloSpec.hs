@@ -12,6 +12,7 @@
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE TypeApplications           #-}
 
+import           Control.Exception (bracket)
 import           Control.Monad.IO.Class (MonadIO)
 import           Control.Monad.Reader (ReaderT)
 import           Database.Persist.Sqlite (SqlBackend, LogFunc, Filter, Entity, runSqlite, runMigration, wrapConnection, rawSql, insert, count, runSqlConn, transactionSave, transactionUndo, close')
@@ -58,7 +59,10 @@ getPersonCount :: MonadIO m => ReaderT SqlBackend m Int
 getPersonCount = count ([] :: [Filter Person])
 
 withDatabaseConnection :: SpecWith SqlBackend -> Spec
-withDatabaseConnection = beforeAll dbSetup . afterAll dbTeardown
+withDatabaseConnection = around provideDb
+
+provideDb :: (SqlBackend -> IO()) -> IO ()
+provideDb = bracket dbSetup dbTeardown
 
 -- | Use an in-memory SQLite database, run the migration, return the connection
 -- for use the the specs
@@ -75,12 +79,7 @@ dbTeardown = close'
 -- | runDb ensures that the action is ran in a transaction which is rolled back.
 -- This ensures tests do not interact with one another.
 runDb :: (MonadUnliftIO m) => SqlBackend -> ReaderT SqlBackend m a -> m a
-runDb conn action = runSqlConn isolatedAction conn
-    where isolatedAction = do
-              transactionSave
-              results <- action
-              transactionUndo
-              return results
+runDb conn action = runSqlConn action conn
 
 -- | We don't care about logging
 noLogging :: LogFunc
