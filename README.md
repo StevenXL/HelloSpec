@@ -5,3 +5,7 @@ This is a repository showing how to create an
 the tests require access to a database.
 
 Please read the commit history via `git log` for further clarity.
+
+This is a [Haskell
+script](https://tech.fpcomplete.com/haskell/tutorial/stack-script) and can be
+ran via `stack HelloSpec.hs`.
