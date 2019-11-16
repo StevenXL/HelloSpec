@@ -12,11 +12,10 @@
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE TypeApplications           #-}
 
-import           Control.Exception (bracket)
 import           Control.Monad.Logger (runNoLoggingT)
 import           Control.Monad.IO.Class (MonadIO(..))
 import           Control.Monad.Reader (ReaderT)
-import           Database.Persist.Sqlite (SqlBackend, LogFunc, Filter, Entity, runSqlite, runMigrationSilent, withSqlConn, wrapConnection, rawSql, insert, count, runSqlConn, transactionSave, transactionUndo, close')
+import           Database.Persist.Sqlite (SqlBackend, LogFunc, Filter, runMigrationSilent, withSqlConn, wrapConnection, insert, count, runSqlConn)
 import           Database.Persist.TH
 import           Database.Sqlite (open)
 import           Test.Hspec
