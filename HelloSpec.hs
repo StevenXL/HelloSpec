@@ -62,7 +62,7 @@ withDatabaseConnection :: SpecWith SqlBackend -> Spec
 withDatabaseConnection = around provideDb
 
 provideDb :: (SqlBackend -> IO ()) -> IO ()
-provideDb action = runNoLoggingT $ withSqlConn dbSetup (fmap liftIO action)
+provideDb = runNoLoggingT . withSqlConn dbSetup . fmap liftIO
 
 -- | Use an in-memory SQLite database, run the migration, return the connection
 -- for use the the specs
