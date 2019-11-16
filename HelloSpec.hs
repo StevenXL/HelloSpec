@@ -13,9 +13,10 @@
 {-# LANGUAGE TypeApplications           #-}
 
 import           Control.Exception (bracket)
-import           Control.Monad.IO.Class (MonadIO)
+import           Control.Monad.Logger (runNoLoggingT)
+import           Control.Monad.IO.Class (MonadIO(..))
 import           Control.Monad.Reader (ReaderT)
-import           Database.Persist.Sqlite (SqlBackend, LogFunc, Filter, Entity, runSqlite, runMigrationSilent, wrapConnection, rawSql, insert, count, runSqlConn, transactionSave, transactionUndo, close')
+import           Database.Persist.Sqlite (SqlBackend, LogFunc, Filter, Entity, runSqlite, runMigrationSilent, withSqlConn, wrapConnection, rawSql, insert, count, runSqlConn, transactionSave, transactionUndo, close')
 import           Database.Persist.TH
 import           Database.Sqlite (open)
 import           Test.Hspec
@@ -61,26 +62,19 @@ getPersonCount = count ([] :: [Filter Person])
 withDatabaseConnection :: SpecWith SqlBackend -> Spec
 withDatabaseConnection = around provideDb
 
-provideDb :: (SqlBackend -> IO()) -> IO ()
-provideDb = bracket dbSetup dbTeardown
+provideDb :: (SqlBackend -> IO ()) -> IO ()
+provideDb action = runNoLoggingT $ withSqlConn dbSetup (fmap liftIO action)
 
 -- | Use an in-memory SQLite database, run the migration, return the connection
 -- for use the the specs
-dbSetup :: IO SqlBackend
-dbSetup = do
+dbSetup :: LogFunc -> IO SqlBackend
+dbSetup logFunc= do
     rawConn     <- open ":memory:"
-    conn        <- wrapConnection rawConn noLogging
+    conn        <- wrapConnection rawConn logFunc
     _           <- runSqlConn (runMigrationSilent migrateAll) conn
     return conn
-
-dbTeardown :: SqlBackend -> IO ()
-dbTeardown = close'
 
 -- | runDb ensures that the action is ran in a transaction which is rolled back.
 -- This ensures tests do not interact with one another.
 runDb :: (MonadUnliftIO m) => SqlBackend -> ReaderT SqlBackend m a -> m a
 runDb conn action = runSqlConn action conn
-
--- | We don't care about logging
-noLogging :: LogFunc
-noLogging _ _ _ _ = return ()
