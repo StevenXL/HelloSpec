@@ -15,7 +15,7 @@
 import           Control.Exception (bracket)
 import           Control.Monad.IO.Class (MonadIO)
 import           Control.Monad.Reader (ReaderT)
-import           Database.Persist.Sqlite (SqlBackend, LogFunc, Filter, Entity, runSqlite, runMigration, wrapConnection, rawSql, insert, count, runSqlConn, transactionSave, transactionUndo, close')
+import           Database.Persist.Sqlite (SqlBackend, LogFunc, Filter, Entity, runSqlite, runMigrationSilent, wrapConnection, rawSql, insert, count, runSqlConn, transactionSave, transactionUndo, close')
 import           Database.Persist.TH
 import           Database.Sqlite (open)
 import           Test.Hspec
@@ -70,7 +70,7 @@ dbSetup :: IO SqlBackend
 dbSetup = do
     rawConn     <- open ":memory:"
     conn        <- wrapConnection rawConn noLogging
-    _           <- runSqlConn (runMigration migrateAll) conn
+    _           <- runSqlConn (runMigrationSilent migrateAll) conn
     return conn
 
 dbTeardown :: SqlBackend -> IO ()
