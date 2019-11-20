@@ -62,16 +62,16 @@ withDatabaseConnection :: SpecWith SqlBackend -> Spec
 withDatabaseConnection = around provideDb
 
 provideDb :: (SqlBackend -> IO ()) -> IO ()
-provideDb = runNoLoggingT . withSqlConn dbSetup . fmap liftIO
+provideDb func = runNoLoggingT $ withSqlConn dbSetup $ \conn -> do
+                    _ <- runDb conn (runMigrationSilent migrateAll)
+                    liftIO $ func conn
 
 -- | Use an in-memory SQLite database, run the migration, return the connection
 -- for use the the specs
 dbSetup :: LogFunc -> IO SqlBackend
 dbSetup logFunc= do
     rawConn     <- open ":memory:"
-    conn        <- wrapConnection rawConn logFunc
-    _           <- runSqlConn (runMigrationSilent migrateAll) conn
-    return conn
+    wrapConnection rawConn logFunc
 
 -- | runDb ensures that the action is ran in a transaction which is rolled back.
 -- This ensures tests do not interact with one another.
